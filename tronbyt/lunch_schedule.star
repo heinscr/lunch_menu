@@ -60,7 +60,7 @@ def failed(key, message):
     return {"error": message}
 
 def fetch_week(monday):
-    key = "medway-lunch-v3:" + monday
+    key = "medway-lunch-v4:" + monday
     saved = cache.get(key)
     if saved:
         return json.decode(saved)
@@ -117,7 +117,7 @@ def error_screen(message):
 def menu_line(name, width):
     text = render.Text(name, font = "CG-pixel-3x5-mono", height = 6, color = "#ffffff")
     if text.size()[0] > width:
-        return render.Marquee(width = width, child = text, delay = 20, offset_end = width)
+        return render.Marquee(width = width, child = text, delay = 20, offset_end = 0)
     return text
 
 def day_row(label, meal):
@@ -168,5 +168,8 @@ def main(config):
     total_ticks = int(duration) * 10
     first_ticks = total_ticks // 2
     second_ticks = total_ticks - first_ticks
-    pages = [first_screen] * first_ticks + [second_screen] * second_ticks
-    return render.Root(child = render.Animation(children = pages), delay = 100, max_age = 180, show_full_animation = True)
+    sequence = render.Sequence(children = [
+        render.Animation(children = [first_screen] * first_ticks),
+        render.Animation(children = [second_screen] * second_ticks),
+    ])
+    return render.Root(child = sequence, delay = 100, max_age = 180, show_full_animation = True)

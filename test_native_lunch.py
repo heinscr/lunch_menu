@@ -99,6 +99,7 @@ def load_app(data=None, status_code=200, weekday="Mon", date="2026-10-26"):
         Row=lambda **kwargs: kwargs,
         Column=lambda **kwargs: kwargs,
         Animation=lambda **kwargs: kwargs,
+        Sequence=lambda **kwargs: kwargs,
         Root=lambda **kwargs: kwargs,
     )
 
@@ -143,12 +144,22 @@ class NativeLunchTests(unittest.TestCase):
     def test_ignores_cached_full_menus_from_previous_app_version(self):
         env, http = load_app()
         env["cache"].set(
-            "medway-lunch-v2:2026-10-26",
-            json.dumps({"2026-10-26": ["Beef Hot Dog", "Classic Cheese Pizza"]}),
+            "medway-lunch-v3:2026-10-26",
+            json.dumps({"2026-10-26": "Beef Hot Dog"}),
         )
         result = env["fetch_week"]("2026-10-26")
         self.assertEqual(result["2026-10-26"], "Beef Hot Dog")
         self.assertEqual(len(http.calls), 1)
+
+    def test_cached_week_contains_thursday_and_friday_featured_items(self):
+        env, _ = load_app()
+        meals = env["fetch_week"]("2026-10-26")
+        self.assertEqual(meals["2026-10-29"], "Philly Cheese Steak")
+        self.assertEqual(meals["2026-10-30"], "Chicken & Mozzarella Sticks")
+        self.assertEqual(
+            json.loads(env["cache"].get("medway-lunch-v4:2026-10-26")),
+            meals,
+        )
 
     def test_only_uses_the_item_immediately_after_american_classics(self):
         env, _ = load_app()
@@ -184,13 +195,14 @@ class NativeLunchTests(unittest.TestCase):
             ],
         )
         pages = result["child"]["children"]
-        self.assertEqual(len(pages), 600)
-        self.assertEqual(pages[0]["children"][0].text, "Lunch")
-        self.assertEqual(pages[299]["children"][0].text, "Lunch")
-        self.assertEqual(pages[300]["children"][0].text, "Lunch")
-        self.assertEqual(pages[0], pages[299])
-        self.assertEqual(pages[300], pages[-1])
-        self.assertNotEqual(pages[0], pages[300])
+        self.assertEqual(len(pages), 2)
+        self.assertEqual(len(pages[0]["children"]), 300)
+        self.assertEqual(len(pages[1]["children"]), 300)
+        self.assertEqual(pages[0]["children"][0]["children"][0].text, "Lunch")
+        self.assertEqual(pages[1]["children"][0]["children"][0].text, "Lunch")
+        self.assertNotEqual(pages[0]["children"][0], pages[1]["children"][0])
+        self.assertEqual(result["delay"], 100)
+        self.assertTrue(result["show_full_animation"])
 
     def test_screens_use_full_width_rows_in_requested_groups(self):
         env, _ = load_app()
@@ -223,6 +235,12 @@ class NativeLunchTests(unittest.TestCase):
         self.assertEqual(label["width"], 10)
         self.assertEqual(meal.text, "Beef Hot Dog")
         self.assertGreater(meal.size()[0], 0)
+
+    def test_long_meal_marquee_returns_to_visible_start(self):
+        env, _ = load_app()
+        marquee = env["menu_line"]("A meal name long enough to scroll across the display", 54)
+        self.assertEqual(marquee["offset_end"], 0)
+        self.assertEqual(marquee["delay"], 20)
 
     def test_weekend_uses_upcoming_monday(self):
         for weekday, date in (("Sat", "2026-10-24"), ("Sun", "2026-10-25")):

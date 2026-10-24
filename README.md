@@ -32,6 +32,7 @@ Monday-to-Friday week.
 
 Each screen gets half the configured duration. Each row spans the full display
 width, and long meal names scroll in the space beside the weekday label.
+The scroll restarts on each screen, and the two-screen animation loops.
 
 ## Optional command-line installer
 
